@@ -1,0 +1,28 @@
+# 운영체제 관련 파일
+.DS_Store
+Thumbs.db
+# IDE/에디터 설정 파일
+.idea/
+*.swp
+*.swo
+.vscode/
+# 언어/프레임워크 (Python)
+# 파이썬 가상 환경 및 캐시
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyd
+dist/
+build/
+# 빌드/의존성 폴더 (JS/CSS 포함)
+# Node.js 의존성
+node_modules/
+npm-debug.log*
+yarn-error.log*
+# 로그 및 임시 파일
+*.log
+tmp/
+temp/
+# 사용자 지정 제외 항목
+build.py

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <meta name="description" content="볼린저밴드의 수렴과 확장 타이밍을 이평선 이격도·변곡 패턴으로 학습하는 웹앱">
+
+    <meta name="theme-color" content="#090b10">
+
+    <title>Bollinger Timing Lab</title>
+
+    <!-- BUILD:CSS:START -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <!-- BUILD:CSS:END -->
+</head>
+
+<body>
+    <div class="background-grid" aria-hidden="true"></div>
+
+    <div id="app-shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-mark">B</div>
+
+                <div>
+                    <strong>BB Timing Lab</strong>
+                    <span>Squeeze · Expansion</span>
+                </div>
+            </div>
+
+            <nav id="main-nav" class="main-nav" aria-label="주요 메뉴">
+                <button type="button" class="nav-item active" data-view="concept">
+                    <span class="nav-icon">i</span>
+                    <span>개념 정리</span>
+                </button>
+
+                <button type="button" class="nav-item" data-view="sim">
+                    <span class="nav-icon">◉</span>
+                    <span>수렴·확장 시뮬레이터</span>
+                </button>
+
+                <button type="button" class="nav-item" data-view="steps">
+                    <span class="nav-icon">↻</span>
+                    <span>타이밍 신호 6단계</span>
+                </button>
+
+                <button type="button" class="nav-item" data-view="quiz">
+                    <span class="nav-icon">?</span>
+                    <span>퀴즈</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-note">
+                <strong>핵심 질문</strong>
+                <code>언제 수렴하고,<br>언제 확장하는가?</code>
+            </div>
+        </aside>
+
+        <main class="workspace">
+            <header class="topbar">
+                <div>
+                    <p class="eyebrow">
+                        BOLLINGER BAND TIMING
+                    </p>
+
+                    <h1 id="page-title">
+                        개념 정리
+                    </h1>
+
+                    <p id="page-description">
+                        "하단 터치 매수, 상단 터치 매도"는 절반짜리 지식입니다.
+                    </p>
+                </div>
+
+                <div class="formula-pill">
+                    <span>밴드 구조</span>
+                    <strong>중심선(20일선) ± 2σ</strong>
+                </div>
+            </header>
+
+            <section id="view-container" aria-live="polite"></section>
+
+            <footer class="app-footer">
+                <p>
+                    이 앱의 차트는 학습용으로 합성된 가상 데이터이며,
+                    모든 지표(볼린저밴드 20일·2σ, 10/20/60일선, 이격도, 밴드폭)는
+                    화면에 보이는 캔들에서 직접 계산됩니다.
+                    실전 매매의 손익 책임은 본인에게 있습니다.
+                </p>
+            </footer>
+        </main>
+    </div>
+
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <!-- BUILD:JS:START -->
+    <script src="js/config.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/conceptView.js"></script>
+    <script src="js/simView.js"></script>
+    <script src="js/stepsView.js"></script>
+    <script src="js/quizView.js"></script>
+    <script src="js/app.js"></script>
+    <!-- BUILD:JS:END -->
+</body>
+
+</html>
