@@ -193,11 +193,37 @@ BBLab.Data = (() => {
         supplyLevel = Math.max(supplyLevel, candles[i].h);
     }
 
-    // 가격 축은 "표시 구간" 기준으로 잡는다
+    // 가격 축은 "표시 구간" 기준으로 잡되,
+    // 캔들뿐 아니라 지표선(이평선·밴드) 값까지 포함해야
+    // 60일선처럼 과거 가격을 평균낸 선이
+    // 차트 초반에 화면 밖으로 잘리지 않는다.
     const visibleCandles = candles.slice(displayStart);
 
-    const priceMin = Math.min(...visibleCandles.map(c => c.l));
-    const priceMax = Math.max(...visibleCandles.map(c => c.h));
+    const visibleIndicatorValues = [
+        ma10,
+        ma20,
+        ma60,
+        upper,
+        lower
+    ]
+        .flatMap(arr => arr.slice(displayStart))
+        .filter(v => v !== null);
+
+    const rawMin = Math.min(
+        ...visibleCandles.map(c => c.l),
+        ...visibleIndicatorValues
+    );
+
+    const rawMax = Math.max(
+        ...visibleCandles.map(c => c.h),
+        ...visibleIndicatorValues
+    );
+
+    // 선이 차트 가장자리에 딱 붙지 않도록 3% 여백
+    const pad = (rawMax - rawMin) * 0.03;
+
+    const priceMin = rawMin - pad;
+    const priceMax = rawMax + pad;
 
     function isSqueeze(i) {
         return (
