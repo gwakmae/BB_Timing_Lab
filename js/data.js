@@ -1,8 +1,11 @@
 window.BBLab = window.BBLab || {};
 
 // 학습용 합성 차트 데이터 + 지표 계산
-// 흐름: 상승 추세 → 과열 해소 → 수렴 → 쌍바닥 → 상방 확장
-//      → 고점 혼란 → 매물대 박스(수렴) → 하방 확장
+// 흐름: (워밍업 상승) → 상승 추세 → 과열 해소 → 수렴 → 쌍바닥
+//      → 상방 확장 → 고점 혼란 → 매물대 박스(수렴) → 하방 확장
+//
+// ※ 60일선이 화면 첫 캔들부터 그려지도록
+//    표시 구간 앞에 계산 전용 워밍업 캔들 60개를 둡니다.
 BBLab.Data = (() => {
     const cfg = BBLab.Config;
 
@@ -18,8 +21,12 @@ BBLab.Data = (() => {
         };
     }
 
+    // 계산 전용 워밍업 캔들 수 (60일선이 첫 표시 캔들부터 존재하도록)
+    const WARMUP = 60;
+
     // 단계 정의: [캔들 수, drift, 변동성]
     const PHASES = [
+        { n: WARMUP, drift: 0.30, vol: 0.80, tag: "워밍업 (상승)" },
         { n: 34, drift: 0.85, vol: 1.15, tag: "상승 추세 (확장)" },
         { n: 12, drift: -0.55, vol: 0.90, tag: "단기 과열 해소" },
         { n: 30, drift: 0.02, vol: 0.42, tag: "횡보 (수렴)" },
@@ -171,11 +178,14 @@ BBLab.Data = (() => {
 
     const N = candles.length;
 
-    // 매물대 영역(학습용): PHASES[6] 박스 구간
+    // 화면에 표시할 첫 캔들의 데이터 인덱스
+    const displayStart = WARMUP;
+
+    // 매물대 영역(학습용): PHASES[7] 박스 구간
     const boxStart = PHASES
-        .slice(0, 6)
+        .slice(0, 7)
         .reduce((s, p) => s + p.n, 0);
-    const boxEnd = boxStart + PHASES[6].n - 1;
+    const boxEnd = boxStart + PHASES[7].n - 1;
 
     let supplyLevel = -Infinity;
 
@@ -183,8 +193,11 @@ BBLab.Data = (() => {
         supplyLevel = Math.max(supplyLevel, candles[i].h);
     }
 
-    const priceMin = Math.min(...candles.map(c => c.l));
-    const priceMax = Math.max(...candles.map(c => c.h));
+    // 가격 축은 "표시 구간" 기준으로 잡는다
+    const visibleCandles = candles.slice(displayStart);
+
+    const priceMin = Math.min(...visibleCandles.map(c => c.l));
+    const priceMax = Math.max(...visibleCandles.map(c => c.h));
 
     function isSqueeze(i) {
         return (
@@ -228,6 +241,7 @@ BBLab.Data = (() => {
         bwQ35,
         bwQ70,
         N,
+        displayStart,
         priceMin,
         priceMax,
         boxStart,

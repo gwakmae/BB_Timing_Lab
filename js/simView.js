@@ -1,8 +1,15 @@
 window.BBLab = window.BBLab || {};
 
 // 수렴/확장 체험 시뮬레이터 (일봉 기준)
+//
+// ※ 데이터 배열 앞쪽 60개는 60일선 계산용 워밍업입니다.
+//    화면 좌표는 "표시 인덱스"(0 = displayStart번째 캔들)를 쓰고,
+//    데이터 접근 시에는 displayStart를 더해 실제 인덱스로 변환합니다.
 BBLab.SimView = (() => {
     const D = BBLab.Data;
+
+    const V0 = D.displayStart;        // 표시 구간의 데이터 시작 인덱스
+    const VN = D.N - V0;              // 표시 캔들 수
 
     const W = 1240;
     const H = 430;
@@ -10,7 +17,7 @@ BBLab.SimView = (() => {
     const BW_H = 96; // 밴드폭 미니차트 높이
 
     const state = {
-        progress: 60,
+        progress: 75,
         showMA: true,
         showZones: true,
         showSupply: true,
@@ -18,17 +25,19 @@ BBLab.SimView = (() => {
         timer: null
     };
 
+    // 표시 인덱스(progress) 기준 점프 위치
     const JUMP_ZONES = [
-        { label: "① 과열 → 수렴 진입", at: 58 },
-        { label: "② 쌍바닥 → 상방 확장", at: 104 },
+        { label: "① 과열 → 수렴 진입", at: 70 },
+        { label: "② 쌍바닥 → 상방 확장", at: 95 },
         { label: "③ 매물대 박스권", at: 150 },
         { label: "④ 쌍봉 → 하방 확장", at: 190 }
     ];
 
-    function x(i) {
+    // v: 표시 인덱스 (0 ~ VN-1)
+    function x(v) {
         return (
             PAD.l +
-            (i / (D.N - 1)) * (W - PAD.l - PAD.r)
+            (v / (VN - 1)) * (W - PAD.l - PAD.r)
         );
     }
 
@@ -44,13 +53,15 @@ BBLab.SimView = (() => {
         let d = "";
         let started = false;
 
-        for (let i = 0; i < upto; i += 1) {
-            if (arr[i] === null) continue;
+        for (let v = 0; v < upto; v += 1) {
+            const value = arr[V0 + v];
+
+            if (value === null) continue;
 
             d +=
                 (started ? " L " : "M ") +
-                x(i).toFixed(1) + " " +
-                y(arr[i]).toFixed(1);
+                x(v).toFixed(1) + " " +
+                y(value).toFixed(1);
 
             started = true;
         }
@@ -63,26 +74,30 @@ BBLab.SimView = (() => {
         let bot = "";
         let started = false;
 
-        for (let i = 0; i < upto; i += 1) {
-            if (D.upper[i] === null) continue;
+        for (let v = 0; v < upto; v += 1) {
+            const value = D.upper[V0 + v];
+
+            if (value === null) continue;
 
             top +=
                 (started ? " L " : "") +
-                x(i).toFixed(1) + " " +
-                y(D.upper[i]).toFixed(1);
+                x(v).toFixed(1) + " " +
+                y(value).toFixed(1);
 
             started = true;
         }
 
         if (!started) return "";
 
-        for (let i = upto - 1; i >= 0; i -= 1) {
-            if (D.lower[i] === null) continue;
+        for (let v = upto - 1; v >= 0; v -= 1) {
+            const value = D.lower[V0 + v];
+
+            if (value === null) continue;
 
             bot +=
                 " L " +
-                x(i).toFixed(1) + " " +
-                y(D.lower[i]).toFixed(1);
+                x(v).toFixed(1) + " " +
+                y(value).toFixed(1);
         }
 
         return "M " + top + bot + " Z";
@@ -94,15 +109,15 @@ BBLab.SimView = (() => {
         let out = "";
         let runStart = null;
 
-        for (let i = 0; i < upto; i += 1) {
-            const sq = D.isSqueeze(i);
+        for (let v = 0; v < upto; v += 1) {
+            const sq = D.isSqueeze(V0 + v);
 
             if (sq && runStart === null) {
-                runStart = i;
+                runStart = v;
             }
 
-            if ((!sq || i === upto - 1) && runStart !== null) {
-                const end = sq && i === upto - 1 ? i : i - 1;
+            if ((!sq || v === upto - 1) && runStart !== null) {
+                const end = sq && v === upto - 1 ? v : v - 1;
 
                 if (end - runStart >= 3) {
                     out += `
@@ -127,16 +142,16 @@ BBLab.SimView = (() => {
     function candlesSvg(upto) {
         const cw = Math.max(
             2.2,
-            ((W - PAD.l - PAD.r) / D.N) * 0.62
+            ((W - PAD.l - PAD.r) / VN) * 0.62
         );
 
         let out = "";
 
-        for (let i = 0; i < upto; i += 1) {
-            const c = D.candles[i];
+        for (let v = 0; v < upto; v += 1) {
+            const c = D.candles[V0 + v];
             const up = c.c >= c.o;
             const col = up ? "#41d695" : "#ff6b78";
-            const cx = x(i);
+            const cx = x(v);
 
             const bodyTop = y(Math.max(c.o, c.c));
             const bodyH = Math.max(
@@ -165,8 +180,9 @@ BBLab.SimView = (() => {
     function supplySvg(upto) {
         if (!state.showSupply) return "";
 
-        const start = Math.max(0, D.boxStart - 8);
-        const end = Math.min(upto - 1, D.boxEnd + 6);
+        // 데이터 인덱스 → 표시 인덱스 변환
+        const start = Math.max(0, D.boxStart - 8 - V0);
+        const end = Math.min(upto - 1, D.boxEnd + 6 - V0);
 
         if (upto <= start) return "";
 
@@ -189,11 +205,12 @@ BBLab.SimView = (() => {
             >큰 매물대 (강한 저항)</text>`;
     }
 
-    function cursorSvg(idx) {
-        if (idx < 0) return "";
+    function cursorSvg(vIdx) {
+        if (vIdx < 0) return "";
 
-        const cx = x(idx);
-        const price = D.candles[idx].c;
+        const di = V0 + vIdx;
+        const cx = x(vIdx);
+        const price = D.candles[di].c;
 
         let dots = `
             <circle
@@ -202,10 +219,11 @@ BBLab.SimView = (() => {
                 stroke="#090b10" stroke-width="1.5"
             ></circle>`;
 
-        if (state.showMA && D.ma60[idx] !== null) {
+        if (state.showMA) {
             dots += `
-                <circle cx="${cx}" cy="${y(D.ma10[idx])}" r="3.4" fill="#ffad5a"></circle>
-                <circle cx="${cx}" cy="${y(D.ma60[idx])}" r="3.4" fill="#a97cff"></circle>`;
+                <circle cx="${cx}" cy="${y(D.ma10[di])}" r="3.4" fill="#ffad5a"></circle>
+                <circle cx="${cx}" cy="${y(D.ma20[di])}" r="3.4" fill="#55d8ff"></circle>
+                <circle cx="${cx}" cy="${y(D.ma60[di])}" r="3.4" fill="#a97cff"></circle>`;
         }
 
         return `
@@ -241,11 +259,13 @@ BBLab.SimView = (() => {
         let fill = "";
         let started = false;
 
-        for (let i = 0; i < upto; i += 1) {
-            if (D.bandwidth[i] === null) continue;
+        for (let v = 0; v < upto; v += 1) {
+            const value = D.bandwidth[V0 + v];
 
-            const px = x(i).toFixed(1);
-            const py = bwY(D.bandwidth[i]).toFixed(1);
+            if (value === null) continue;
+
+            const px = x(v).toFixed(1);
+            const py = bwY(value).toFixed(1);
 
             line += (started ? " L " : "M ") + px + " " + py;
 
@@ -264,19 +284,19 @@ BBLab.SimView = (() => {
                 " L " + x(upto - 1).toFixed(1) +
                 " " + (BW_H - 16) + " Z";
 
-            const idx = upto - 1;
+            const vIdx = upto - 1;
 
-            const cursor = D.bandwidth[idx] !== null
+            const cursor = D.bandwidth[V0 + vIdx] !== null
                 ? `
                     <line
-                        x1="${x(idx)}" y1="6"
-                        x2="${x(idx)}" y2="${BW_H - 16}"
+                        x1="${x(vIdx)}" y1="6"
+                        x2="${x(vIdx)}" y2="${BW_H - 16}"
                         stroke="rgba(244,246,251,0.35)"
                         stroke-dasharray="4 4"
                     ></line>
                     <circle
-                        cx="${x(idx)}"
-                        cy="${bwY(D.bandwidth[idx])}"
+                        cx="${x(vIdx)}"
+                        cy="${bwY(D.bandwidth[V0 + vIdx])}"
                         r="4" fill="#55d8ff"
                     ></circle>`
                 : "";
@@ -321,7 +341,7 @@ BBLab.SimView = (() => {
     }
 
     function chartSvg(upto) {
-        const idx = upto - 1;
+        const vIdx = upto - 1;
 
         return `
         <svg
@@ -367,7 +387,7 @@ BBLab.SimView = (() => {
             ` : ""}
 
             ${candlesSvg(upto)}
-            ${cursorSvg(idx)}
+            ${cursorSvg(vIdx)}
 
             <rect
                 id="bb-click-layer"
@@ -382,16 +402,19 @@ BBLab.SimView = (() => {
 
     /* ---- 우측 진단 패널 ---- */
 
-    function diagnose(idx) {
-        const bw = D.bandwidth[idx];
-        const squeeze = D.isSqueeze(idx);
-        const expand = D.isExpansion(idx);
+    // vIdx: 표시 인덱스
+    function diagnose(vIdx) {
+        const di = V0 + vIdx;
 
-        const slope60 = D.slopeOf(D.ma60, idx, 6);
-        const slope10 = D.slopeOf(D.ma10, idx, 3);
+        const bw = D.bandwidth[di];
+        const squeeze = D.isSqueeze(di);
+        const expand = D.isExpansion(di);
 
-        const gapNow = D.gap[idx];
-        const gapPrev = idx > 6 ? D.gap[idx - 6] : null;
+        const slope60 = D.slopeOf(D.ma60, di, 6);
+        const slope10 = D.slopeOf(D.ma10, di, 3);
+
+        const gapNow = D.gap[di];
+        const gapPrev = di > 6 ? D.gap[di - 6] : null;
 
         const gapShrinking =
             gapNow !== null &&
@@ -455,16 +478,16 @@ BBLab.SimView = (() => {
             title,
             tip,
             signals,
-            tag: D.candles[idx].tag
+            tag: D.candles[di].tag
         };
     }
 
-    function renderDiag(idx) {
+    function renderDiag(vIdx) {
         const el = document.getElementById("diag-body");
 
         if (!el) return;
 
-        const d = diagnose(idx);
+        const d = diagnose(vIdx);
 
         el.innerHTML = `
             <div class="diag-state ${d.stateCls}">
@@ -483,7 +506,7 @@ BBLab.SimView = (() => {
 
             <div class="diag-metric">
                 <span>현재 캔들</span>
-                <strong>#${idx + 1} · ${d.tag}</strong>
+                <strong>#${vIdx + 1} · ${d.tag}</strong>
             </div>
 
             <div class="diag-metric">
@@ -503,7 +526,7 @@ BBLab.SimView = (() => {
     }
 
     function drawAll(container) {
-        const upto = Math.max(2, Math.min(state.progress, D.N));
+        const upto = Math.max(2, Math.min(state.progress, VN));
 
         const chartHost = document.getElementById("bb-chart-host");
         const bwHost = document.getElementById("bb-bw-host");
@@ -530,8 +553,8 @@ BBLab.SimView = (() => {
                 state.progress = Math.max(
                     2,
                     Math.min(
-                        D.N,
-                        Math.round(ratio * (D.N - 1)) + 1
+                        VN,
+                        Math.round(ratio * (VN - 1)) + 1
                     )
                 );
 
@@ -642,7 +665,7 @@ BBLab.SimView = (() => {
                 return;
             }
 
-            if (state.progress >= D.N) {
+            if (state.progress >= VN) {
                 state.progress = 2;
             }
 
@@ -652,7 +675,7 @@ BBLab.SimView = (() => {
             state.timer = setInterval(() => {
                 state.progress += 1;
 
-                if (state.progress >= D.N) {
+                if (state.progress >= VN) {
                     stopPlay();
                 }
 
